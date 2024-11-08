@@ -1,0 +1,20 @@
+[package]
+name = "discord_gateway_proxy"
+version = "0.1.0"
+edition = "2021"
+default-run = "discord_gateway_proxy"
+
+[[bin]]
+name = "generate_keys"
+path = "src/bin/generate_keys.rs"
+
+[dependencies]
+ed25519-dalek = { version = "2.0", features = ["rand_core"] }
+time = { version = "0.3", features = ["formatting"] }
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+twilight-gateway = "0.15"
+rand = "0.8"
+toml = "0.8"
+hex = "0.4"

@@ -1,0 +1,3 @@
+bot_token = ''
+api_url = 'https://api.example.com'
+signing_key = 'generate with cargo run --bin generate_keys'
