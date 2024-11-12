@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let signing_key: SigningKey = SigningKey::from_bytes(
         &hex::decode(&project.signing_key)?.try_into().unwrap());
 
-    let intents: Intents = Intents::GUILD_MESSAGES | Intents::GUILD_MESSAGE_REACTIONS | Intents::MESSAGE_CONTENT;
+    let intents: Intents = Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::GUILD_MESSAGE_REACTIONS | Intents::MESSAGE_CONTENT;
     let mut shard: Shard = Shard::new(ShardId::ONE, project.bot_token, intents);
 
     let client = reqwest::Client::new();
@@ -62,7 +62,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         };
 
-        if json_str.starts_with("{\"t\":\"READY\"") || json_str.starts_with("{\"t\":null") {
+        if json_str.starts_with("{\"t\":\"READY\"") ||
+           json_str.starts_with("{\"t\":null") ||
+           json_str.starts_with("{\"t\":\"RESUMED\"")
+        {
             continue;
         }
 
