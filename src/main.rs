@@ -2,6 +2,7 @@ use twilight_gateway::{Message, Shard, ShardId, Intents};
 use ed25519_dalek::{Signer, SigningKey};
 use time::OffsetDateTime;
 use serde::Deserialize;
+use std::time::Instant;
 use std::error::Error;
 use std::fs;
 use hex;
@@ -90,6 +91,8 @@ async fn forward_event(
 
     let signature = create_signature(&signing_key, &timestamp, &json_str);
 
+    let start_time = Instant::now();
+
     match client.post(&endpoint)
         .header("Content-Type", "application/json")
         .header("X-Signature-Ed25519", signature)
@@ -99,10 +102,11 @@ async fn forward_event(
         .await
     {
         Ok(response) => {
+            let duration = start_time.elapsed().as_millis();
             if !response.status().is_success() {
                 println!("api request failed with status: {}", response.status());
             } else {
-                println!("forwarded {} event", response.text().await.unwrap());
+                println!("forwarded {} event (took {}ms)", response.text().await.unwrap(), duration);
             }
         }
         Err(e) => println!("error forwarding event: {:?}", e),
