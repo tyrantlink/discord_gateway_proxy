@@ -1,5 +1,6 @@
 use twilight_gateway::{Message, Shard, ShardId, Intents};
 use ed25519_dalek::{Signer, SigningKey};
+use tokio::time::{sleep, Duration};
 use time::OffsetDateTime;
 use serde::Deserialize;
 use std::time::Instant;
@@ -85,30 +86,45 @@ async fn forward_event(
     json_str: String,
     signing_key: SigningKey,
 ) {
-    let timestamp = OffsetDateTime::now_utc()
-    .format(&time::format_description::well_known::Rfc3339)
-    .unwrap();
+    let max_retries = 5;
+    let retry_delay = Duration::from_millis(500);
 
-    let signature = create_signature(&signing_key, &timestamp, &json_str);
+    for attempt in 0..max_retries {
+        let timestamp = OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
 
-    let start_time = Instant::now();
+        let signature = create_signature(&signing_key, &timestamp, &json_str);
+        let start_time = Instant::now();
 
-    match client.post(&endpoint)
-        .header("Content-Type", "application/json")
-        .header("X-Signature-Ed25519", signature)
-        .header("X-Signature-Timestamp", timestamp)
-        .body(json_str)
-        .send()
-        .await
-    {
-        Ok(response) => {
-            let duration = start_time.elapsed().as_millis();
-            if !response.status().is_success() {
-                println!("api request failed with status: {}", response.status());
-            } else {
-                println!("forwarded {} event (took {}ms)", response.text().await.unwrap(), duration);
+        match client.post(&endpoint)
+            .header("Content-Type", "application/json")
+            .header("X-Signature-Ed25519", signature)
+            .header("X-Signature-Timestamp", timestamp)
+            .body(json_str.clone())
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let duration = start_time.elapsed().as_millis();
+                if response.status() == reqwest::StatusCode::BAD_GATEWAY {
+                    if attempt < max_retries - 1 {
+                        println!("Received 502 Bad Gateway, retrying in 500ms (attempt {}/{})", attempt + 1, max_retries);
+                        sleep(retry_delay).await;
+                        continue;
+                    }
+                    println!("Failed after {} attempts with 502 Bad Gateway", max_retries);
+                } else if !response.status().is_success() {
+                    println!("api request failed with status: {}", response.status());
+                } else {
+                    println!("forwarded {} event (took {}ms)", response.text().await.unwrap(), duration);
+                }
+                break;
+            }
+            Err(e) => {
+                println!("error forwarding event: {:?}", e);
+                break;
             }
         }
-        Err(e) => println!("error forwarding event: {:?}", e),
     }
 }
