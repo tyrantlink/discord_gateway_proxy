@@ -107,7 +107,8 @@ async fn forward_event(
         {
             Ok(response) => {
                 let duration = start_time.elapsed().as_millis();
-                if response.status() == reqwest::StatusCode::BAD_GATEWAY {
+                if response.status() == reqwest::StatusCode::BAD_GATEWAY ||
+                   response.status() == reqwest::StatusCode::SERVICE_UNAVAILABLE {
                     if attempt < max_retries - 1 {
                         println!("Received 502 Bad Gateway, retrying in 500ms (attempt {}/{})", attempt + 1, max_retries);
                         sleep(retry_delay).await;
