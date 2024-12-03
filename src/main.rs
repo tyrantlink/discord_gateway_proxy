@@ -107,6 +107,7 @@ async fn forward_event(
         {
             Ok(response) => {
                 let duration = start_time.elapsed().as_millis();
+
                 if response.status() == reqwest::StatusCode::BAD_GATEWAY ||
                    response.status() == reqwest::StatusCode::SERVICE_UNAVAILABLE {
                     if attempt < max_retries - 1 {
@@ -115,10 +116,17 @@ async fn forward_event(
                         continue;
                     }
                     println!("Failed after {} attempts with 502 Bad Gateway", max_retries);
-                } else if !response.status().is_success() {
+                    break
+                }
+                if !response.status().is_success() {
                     println!("api request failed with status: {}", response.status());
-                } else {
-                    println!("forwarded {} event (took {}ms)", response.text().await.unwrap(), duration);
+                    break
+                }
+
+                let event: String = response.text().await.unwrap();
+
+                if event != "DUPLICATE_EVENT" {
+                    println!("forwarded {} event (took {}ms)", event, duration);
                 }
                 break;
             }
