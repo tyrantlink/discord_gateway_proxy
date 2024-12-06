@@ -41,7 +41,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let signing_key: SigningKey = SigningKey::from_bytes(
         &hex::decode(&project.signing_key)?.try_into().unwrap());
 
-    let intents: Intents = Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::GUILD_MESSAGE_REACTIONS | Intents::MESSAGE_CONTENT;
+    let intents: Intents =Intents::GUILDS  |
+        Intents::GUILD_EMOJIS_AND_STICKERS |
+        Intents::GUILD_WEBHOOKS            |
+        Intents::GUILD_MESSAGES            |
+        Intents::GUILD_MESSAGE_REACTIONS   |
+        Intents::MESSAGE_CONTENT;
     let mut shard: Shard = Shard::new(ShardId::ONE, project.bot_token, intents);
 
     let client = reqwest::Client::new();
@@ -65,7 +70,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         };
 
         if json_str.starts_with("{\"t\":\"READY\"") ||
-           json_str.starts_with("{\"t\":null") ||
+           json_str.starts_with("{\"t\":null")      ||
            json_str.starts_with("{\"t\":\"RESUMED\"")
         {
             continue;
@@ -111,7 +116,7 @@ async fn forward_event(
                 if response.status() == reqwest::StatusCode::BAD_GATEWAY ||
                    response.status() == reqwest::StatusCode::SERVICE_UNAVAILABLE {
                     if attempt < max_retries - 1 {
-                        println!("Received 502 Bad Gateway, retrying in 500ms (attempt {}/{})", attempt + 1, max_retries);
+                        println!("Received {}, retrying in 500ms (attempt {}/{})", response.status().as_str(), attempt + 1, max_retries);
                         sleep(retry_delay).await;
                         continue;
                     }
