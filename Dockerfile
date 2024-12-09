@@ -4,4 +4,4 @@ COPY . .
 
 RUN cargo build --release
 
-CMD ['./target/release/discord_gateway_proxy']
+CMD './target/release/discord_gateway_proxy'
