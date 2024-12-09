@@ -13,6 +13,7 @@ struct Project {
     bot_token: String,
     api_url: String,
     signing_key: String,
+    api_key: String
 }
 
 async fn load_project() -> Result<Project, Box<dyn Error>> {
@@ -81,6 +82,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             api_endpoint.clone(),
             json_str,
             signing_key.clone(),
+            project.api_key.clone()
         ));
     }
 }
@@ -90,6 +92,7 @@ async fn forward_event(
     endpoint: String,
     json_str: String,
     signing_key: SigningKey,
+    api_key: String
 ) {
     let max_retries = 5;
     let retry_delay = Duration::from_millis(500);
@@ -106,6 +109,7 @@ async fn forward_event(
             .header("Content-Type", "application/json")
             .header("X-Signature-Ed25519", signature)
             .header("X-Signature-Timestamp", timestamp)
+            .header("Authorization", api_key.clone())
             .body(json_str.clone())
             .send()
             .await
