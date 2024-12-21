@@ -1,7 +1,9 @@
-use twilight_gateway::{Message, Shard, ShardId, Intents};
+use twilight_gateway::{Message, Intents, Config, stream::{self, ShardMessageStream}};
 use ed25519_dalek::{Signer, SigningKey};
 use tokio::time::{sleep, Duration};
+use twilight_http::Client;
 use time::OffsetDateTime;
+use futures::StreamExt;
 use serde::Deserialize;
 use std::time::Instant;
 use std::error::Error;
@@ -42,21 +44,30 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let signing_key: SigningKey = SigningKey::from_bytes(
         &hex::decode(&project.signing_key)?.try_into().unwrap());
 
-    let intents: Intents =Intents::GUILDS  |
+    let client = reqwest::Client::new();
+    let api_endpoint: String = format!("{}/discord/event", project.api_url.trim_end_matches('/'));
+
+    let bot = Client::new(project.bot_token.clone());
+    let config = Config::new(
+        project.bot_token,
+        Intents::GUILDS                    |
         Intents::GUILD_EMOJIS_AND_STICKERS |
         Intents::GUILD_WEBHOOKS            |
         Intents::GUILD_MESSAGES            |
         Intents::GUILD_MESSAGE_REACTIONS   |
-        Intents::MESSAGE_CONTENT;
-    let mut shard: Shard = Shard::new(ShardId::ONE, project.bot_token, intents);
+        Intents::MESSAGE_CONTENT
+    );
 
-    let client = reqwest::Client::new();
-    let api_endpoint: String = format!("{}/discord/event", project.api_url.trim_end_matches('/'));
+    let mut shards = stream::create_recommended(&bot, config, |_, builder| builder.build())
+        .await?
+        .collect::<Vec<_>>();
 
-    println!("event forwarding to {}", api_endpoint);
+    println!("event forwarding to {} with {} shards", api_endpoint, shards.len());
 
-    loop {
-        let message: Message = match shard.next_message().await {
+    let mut stream = ShardMessageStream::new(shards.iter_mut());
+
+    while let Some((_shard, message)) = stream.next().await {
+        let message = match message {
             Ok(message) => message,
             Err(_) => {
                 continue;
@@ -85,6 +96,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             project.api_key.clone()
         ));
     }
+
+    Ok(())
 }
 
 async fn forward_event(
